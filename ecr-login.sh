@@ -4,7 +4,7 @@ function usage {
     echo "usage: $0 [options]"
     echo "       -r|--region        If not provided, the region will be looked up via AWS metadata (optional on EC2-only)."
     echo "       -g|--registries    The AWS account IDs to use for the login. Space separated. (Ex: \"123456789101, 98765432101\")"
-    echo "       -f|--file-location Where the dockercfg should be saved."
+    echo "       -f|--file-location Where the docker.tar.gz should be saved."
     echo "       -i|--interval      How often to loop and refresh credentials (optional - default is 21600 - 6 hours)."
     exit 1
 }
@@ -62,6 +62,9 @@ if [[ -z "$INTERVAL" ]]; then
     INTERVAL=21600
 fi
 
+mkdir -p /tmp/.docker
+TEMP_FILE_LOCATION=/tmp/.docker/config.json
+
 while true; do
     for ACCOUNT_NUM in $REGISTRIES
     do
@@ -82,22 +85,25 @@ while true; do
         ECR_JSON_PLAIN="{\"auth\": \"$AUTH_TOKEN\",\"email\": \"none\"}"
 
         # If a dockercfg file doesn't already exist (odd), we can just write and exit
-        if [[ ! -f $FILE_LOCATION || ! -s $FILE_LOCATION ]]; then
+        if [[ ! -f $TEMP_FILE_LOCATION || ! -s $TEMP_FILE_LOCATION ]]; then
             log "Docker config does not exist in file location, creating file"
-            echo "$ECR_JSON" > $FILE_LOCATION
+            echo "$ECR_JSON" > $TEMP_FILE_LOCATION
             continue;
         fi
 
         log "Existing Docker config found, updating file"
 
         # Otherwise, need to append or modify the new config to existing
-        EXISTING_CFG=$(cat $FILE_LOCATION)
+        EXISTING_CFG=$(cat $TEMP_FILE_LOCATION)
         NEW_CONFIG=$(echo $EXISTING_CFG | jq ".auths[\"$ENDPOINT\"]=$ECR_JSON_PLAIN")
 
-        echo $NEW_CONFIG > $FILE_LOCATION
+        echo $NEW_CONFIG > $TEMP_FILE_LOCATION
 
         log "Done credential update for account: $ACCOUNT_NUM"
     done
+
+    rm -f $FILE_LOCATION
+    tar czf $FILE_LOCATION -C /tmp .docker
 
     log "Sleeping for $INTERVAL"
     sleep $INTERVAL
