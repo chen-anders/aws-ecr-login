@@ -115,6 +115,8 @@ To run this on Marathon 1.7/1.8 or newer, here's a sample JSON:
 }
 ```
 
+Service deploys on Marathon that require ECR credentials will need to reference docker.tar.gz (or in this case `file:///home/core/docker.tar.gz`) in the URI field - so Marathon can pull the credentials before pulling off your desired Docker image off of ECR. 
+
 
 ### Usage on AWS Infrastructure
 Running on AWS means that the region can be determined automatically via the AWS metadata service and does not need to be provided via the command line.
